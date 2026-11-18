@@ -1,48 +1,47 @@
+# =============================================================================
+# Chapter 8: Standards & Assumptions
+# =============================================================================
 from typing import List
 
-from osdagbridge.core.utils.common import (
-    KEY_DESIGN_MODE
-)
+from osdagbridge.core.utils.common import KEY_DESIGN_MODE
+from .latex_builders import Column, LongTable
 
 
 def ch8_design_log(log_entries: List[str], input_dict: dict) -> str:
-    """Render Chapter 8 using real log_entries, matching Osdag color convention."""
-
-    lines_tex = []
-    if log_entries:
-        for entry in log_entries:
-            for raw_line in entry.split('\n'):
-                line = raw_line.strip()
-                if not line:
-                    continue
-                escaped = (line
-                    .replace('_', r'\_')
-                    .replace('%', r'\%')
-                    .replace('&', r'\&')
-                    .replace('#', r'\#'))
-                upper = line.upper()
-                if 'WARNING' in upper:
-                    lines_tex.append(
-                        rf'\textcolor{{blue}}{{{escaped}}}\\')
-                elif 'ERROR' in upper:
-                    lines_tex.append(
-                        rf'\textcolor{{red}}{{{escaped}}}\\')
-                elif 'INFO' in upper:
-                    lines_tex.append(
-                        rf'\textcolor{{osdagGreen}}{{{escaped}}}\\')
-                else:
-                    continue  # skip lines without a known level — Osdag patter
-
+    """Render Chapter 8 (standards, assumptions, limitations)."""
     mode = str(input_dict.get(KEY_DESIGN_MODE, 'Optimized')).strip().lower()
     is_custom = mode in {'custom', 'customized'}
     return _ch8_assumptions(is_custom)
 
 
+def _codes_table(caption: str, label: str, rows) -> str:
+    t = LongTable([Column(2.6, "c", "Code"), Column(1.4, "c", "Year"), Column(10.0, "l", "Title / Scope")],
+                  caption=caption, label=label)
+    for r in rows:
+        t.add_row(list(r))
+    return t.render()
+
+
 def _ch8_assumptions(is_custom: bool) -> str:
-    assumptions = [
-        r"""
+    irc = _codes_table("IRC Codes", "tab:irc-codes", [
+        ("IRC 5", "2015", "General Features of Design --- carriageway widths, kerb, footpath dimensions"),
+        ("IRC 6", "2017", "Loads and Load Combinations --- dead load, live load, impact, wind, temperature, etc."),
+        ("IRC 22", "2015", "Composite Construction (LS) --- composite section properties, ULS/SLS design, shear connectors"),
+        ("IRC 24", "2010", "Steel Road Bridges (LS) --- stiffener design, skew angle limits, diaphragm requirements"),
+        ("IRC 112", "2020", "Concrete Road Bridges --- deck slab flexure, shear, crack width, reinforcement"),
+        ("IRC SP 114", "2018", "Seismic Design of Road Bridges"),
+    ])
+    is_ = _codes_table("IS Codes", "tab:is-codes", [
+        ("IS 800", "2007", "Steel construction --- tension, compression, bending, shear, LTB, stiffeners, combined checks"),
+        ("IS 456", "2000", "Concrete --- simplified stress-block for deck moment capacity"),
+        ("IS 1786", "2008", "Reinforcement steel properties"),
+        ("IS 1893 (Part 3)", "2014", "Earthquake resistant design"),
+        ("IS 2062", "2011", "Structural steel --- yield and ultimate strength by grade"),
+    ])
+
+    parts = [r"""
 \chapter{Standards \& Assumptions}
-\label{ch:Design Standards}
+\label{ch:design-standards}
 
 This section provides references to standards used to calibrate the OsdagBridge
 design modules, and notes the limitations of the current software version.
@@ -50,58 +49,13 @@ design modules, and notes the limitations of the current software version.
 \section{Design Standards}
 \label{sec:design_standards}
 
-The following Indian Road Congress (IRC) codes and Indian Standards (IS) 
+The following Indian Roads Congress (IRC) codes and Indian Standards (IS)
 form the basis of all design calculations in this software.
 
-\vspace{0.5cm}
+""" + irc + "\n" + is_ + r"""
 
-\begingroup
-\setlength{\tabcolsep}{3.5pt}
-\begin{table}[H]
-\caption{\textbf{IRC Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
-\hline
-\textbf{Code} & \textbf{Year} & \textbf{Title / Scope} \\ 
-\hline
-IRC 5 & 2015 & General Features of Design - carriageway widths, kerb, footpath dimensions \\ 
-\hline
-IRC 6 & 2017 & Loads and Load Combinations - dead load, live load, impact, wind, temperature, etc. \\ 
-\hline
-IRC 22 & 2015 & Composite Construction (LS) - Composite section properties, ULS/SLS design, shear connectors \\ 
-\hline
-IRC 24 & 2010 & Steel Road Bridges (LS) - Stiffener design, skew angle limits, diaphragm requirements \\ 
-\hline
-IRC 112 & 2020 & Concrete Road Bridges - Deck slab flexure, shear, crack width, reinforcement \\ 
-\hline
-IRC SP 114 & 2018 & Seismic Design of Road Bridges \\ 
-\hline
-\end{tabular}
-\end{table}
-
-\begingroup
-\setlength{\tabcolsep}{3.5pt}
-\begin{table}[H]
-\caption{\textbf{IS Codes}}
-\begin{tabular}{|c|c|p{13cm}|}
-\hline
-\textbf{Code} & \textbf{Year} & \textbf{Scope} \\
-\hline
-IS 800 & 2007 & Steel construction - tension, compression, bending, shear, LTB, stiffeners, combined checks \\
-\hline
-IS 456 & 2000 & Concrete - simplified stress-block for deck moment capacity \\
-\hline
-IS 1786 & 2008 & Reinforcement steel properties \\
-\hline
-IS 1893 (Part 3) & 2014 & Earthquake resistant design \\
-\hline
-IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
-\hline
-\end{tabular}
-\end{table}
-
-\clearpage
 \section{Analysis and Design Assumptions of This Version}
-\label{sec:assumptions}
+\label{sec:assumptions-version}
 
 \textbf{Structural Analysis}
 
@@ -121,11 +75,10 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
     \item Long-term composite section properties (with creep-adjusted modular ratio) are used for SLS deflection and crack-width checks.
     \item Pre-composite stage: the steel girder alone resists all construction loads prior to concrete gaining strength.
 \end{itemize}
-"""
-    ]
+"""]
 
     if not is_custom:
-        assumptions.append(r"""
+        parts.append(r"""
 \textbf{Material Properties (IRC 22:2015 Annex III)}
 
 \begin{itemize}
@@ -140,7 +93,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \item $\gamma_{m0}$ (steel yield, ULS) = 1.10
 \item $\gamma_{m1}$ (steel ultimate, ULS) = 1.25
 \item Reinforcement (ULS) = 1.15
-\item Welds -- shop: 1.25; field: 1.50
+\item Welds --- shop: 1.25; field: 1.50
 \item Fatigue ($\gamma_{mft}$) = 1.35
 \end{itemize}
 
@@ -175,7 +128,7 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
 \end{itemize}
 """)
 
-    assumptions.append(r"""
+    parts.append(r"""
 \section{Known Limitations of This Version}
 \label{sec:limitations}
 
@@ -189,7 +142,4 @@ IS 2062 & 2011 & Structural steel - yield and ultimate strength by grade \\
   continuous spans are not currently supported.
 \end{itemize}
 """)
-
-    return "\n".join(assumptions)
-
-
+    return "\n".join(parts)

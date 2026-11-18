@@ -1,7 +1,21 @@
+# =============================================================================
+# Chapter 1: Project Information
+# =============================================================================
 from osdagbridge.core.reports.report_utils import _tex
+from .latex_builders import KeyValueTable
 
 
 def ch1_project_info(m):
+    t = KeyValueTable(caption="Project and Design Team Details", label="tab:project-details",
+                      param_header="Item", value_header="Detail")
+    for label, value in (
+        ("Project Name", m.project_name), ("Project Location", m.project_location),
+        ("Designer", m.designer), ("Reviewer", m.reviewer), ("Organization", m.company),
+        ("Client", m.client), ("Job Number", m.job_number), ("Report Date", m.report_date),
+    ):
+        t.add(r"\textbf{" + label + "}", _tex(value))
+    t.add(r"\textbf{Software Version}", "OsdagBridge")
+
     return r"""
 \chapter{Project Information}
 
@@ -10,24 +24,7 @@ This section records all project metadata as entered by the designer.
 \section{Project and Design Team Details}
 \label{sec:project-details}
 
-\begin{tabular}{|L{5.5cm}|L{8.5cm}|}
-\hline
-\textbf{Project Name} & """ + _tex(m.project_name) + r""" \\
-\hline
-\textbf{Project Location} & """ + _tex(m.project_location) + r""" \\
-\hline
-\textbf{Designer} & """ + _tex(m.designer) + r""" \\
-\hline
-\textbf{Reviewer} & """ + _tex(m.reviewer) + r""" \\
-\hline
-\textbf{Organization} & """ + _tex(m.company) + r""" \\
-\hline
-\textbf{Client} & """ + _tex(m.client) + r""" \\
-\hline
-\textbf{Software Version} & OsdagBridge \\
-\hline
-\end{tabular}
-
+""" + t.render() + r"""
 
 \section{Applicable Codes and Standards}
 \label{sec:codes}
@@ -44,5 +41,3 @@ This section records all project metadata as entered by the designer.
 \item Indian Standard (IS) 6006: Steel Bearings
 \end{itemize}
 """
-
-
