@@ -247,6 +247,19 @@ class ReportDataBridge:
         except Exception:
             return []
 
+    def get_cb_pairs_with_forces(self, kind: str = "cb") -> set:
+        """Pairs for which the analysis produced at least one member force."""
+        from .summary_data import pairs_with_forces
+        return pairs_with_forces(self._cb_forces_dict(kind))
+
+    def get_cb_input_section(self, pair: str, member: str, kind: str = "cb") -> str:
+        """Section designation chosen in the inputs (fallback when no design ran)."""
+        if kind != "ed":
+            return ""
+        field = "bracing_section_designation" if member == "diagonal" else "top_chord_section_designation"
+        val = self.output_dict.get(f"member_properties.end_diaphragm_details.{pair.replace('-', '')}.{field}")
+        return _tex(str(val)) if val else ""
+
     def get_cb_geometry(self, kind: str = "cb") -> dict:
         return self._cb_forces_dict(kind).get("geometry", {}) or {}
 
@@ -349,8 +362,8 @@ class ReportDataBridge:
     def get_cb_effective_length(self, member: str, kind: str = "cb") -> str:
         try:
             geom = self.get_cb_geometry(kind)
-            L_m = geom.get("diagonal_length_m", 0) if member == "diagonal" else geom.get("horiz_proj_m", 0)
-            return f"{L_m * 1000:.0f}"
+            L_m = geom.get("diagonal_length_m") if member == "diagonal" else geom.get("horiz_proj_m")
+            return f"{float(L_m) * 1000:.0f}" if L_m else ""
         except (TypeError, ValueError):
             return ""
 

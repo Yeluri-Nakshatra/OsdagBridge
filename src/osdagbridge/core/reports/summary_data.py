@@ -265,7 +265,8 @@ def member_design_urs(pair_designs: dict, forces_dict: Optional[dict], name: str
     """
     comp = ComponentUR(name, key)
     if not isinstance(pair_designs, dict) or not pair_designs:
-        comp.note = f"{name} design results not available."
+        comp.note = (no_forces_note(name) if forces_dict and not pairs_with_forces(forces_dict)
+                     else f"{name} design results not available.")
         return comp
 
     best: Dict[str, URItem] = {}
@@ -302,8 +303,26 @@ def member_design_urs(pair_designs: dict, forces_dict: Optional[dict], name: str
     if slender_best is not None:
         comp.items.append(slender_best)
     if not comp.items:
-        comp.note = f"{name} design results not available."
+        comp.note = (no_forces_note(name) if forces_dict and not pairs_with_forces(forces_dict)
+                     else f"{name} design results not available.")
     return comp
+
+
+_FORCE_KEYS = ("diag_tension_kN", "diag_compression_kN", "chord_tension_kN", "chord_compression_kN")
+
+
+def pairs_with_forces(forces_dict: Optional[dict]) -> set:
+    """Girder pairs for which the analysis produced at least one member force."""
+    out = set()
+    for pair, pf in ((forces_dict or {}).get("pairs") or {}).items():
+        if isinstance(pf, dict) and any(pf.get(k) is not None for k in _FORCE_KEYS):
+            out.add(pair)
+    return out
+
+
+def no_forces_note(name: str) -> str:
+    return (f"The analysis produced no axial forces in the {name.lower()} members, "
+            "so the member design was not performed.")
 
 
 def bracing_urs(output_dict: dict) -> ComponentUR:

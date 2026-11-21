@@ -287,6 +287,33 @@ def test_report_data_bridge_kinds(outputs, inputs):
     assert b.get_cb_status("G1-G2", "diagonal", "compression", "ed") == r"\statusPass"
 
 
+def test_end_diaphragm_without_analysis_forces(outputs, inputs):
+    """Real-pipeline shape: ED pairs exist but the analysis gave no forces, so no
+    member design ran and the forces dict has no geometry. The report must say so
+    instead of printing blank cells and KL = 0."""
+    from osdagbridge.core.reports.chap5 import _member_tables, _NO_FORCES_MSG
+    od = dict(outputs)
+    none_forces = {k: None for k in ("diag_tension_kN", "diag_compression_kN",
+                                     "chord_tension_kN", "chord_compression_kN")}
+    od["end_diaphragm_forces_dict"] = {"pairs": {"G1-G2": dict(none_forces), "G2-G3": dict(none_forces)}}
+    od["end_diaphragm_design_results"] = {"G1-G2": {}, "G2-G3": {}}
+    od["member_properties.end_diaphragm_details.G1G2.bracing_section_designation"] = "IS 100 x 100 x 10"
+    b = ReportDataBridge(od, inputs, None)
+
+    assert b.get_cb_pairs("ed") == ["G1-G2", "G2-G3"]
+    assert b.get_cb_pairs_with_forces("ed") == set()
+    assert b.get_cb_effective_length("diagonal", "ed") == ""          # not "0"
+    tex = _member_tables(b, "ed", "End Diaphragm", "ed")
+    assert tex.count(_NO_FORCES_MSG) == 4                              # 2 pairs x (slenderness + capacity)
+    assert "IS 100 x 100 x 10" in tex                                  # input section shown as fallback
+    assert "no axial forces in the end diaphragm members" in tex
+
+    comp = summary_data.diaphragm_urs(od, inputs)
+    assert not comp.items and "no axial forces" in comp.note
+    # cross bracing still renders normally from its own results
+    assert b.get_cb_pairs_with_forces("cb") == {"G1-G2", "G2-G3"}
+
+
 @pytest.mark.skipif(shutil.which("pdflatex") is None, reason="pdflatex not on PATH")
 def test_end_to_end_pdf(tmp_path, inputs, outputs):
     from osdagbridge.core.reports.report_generator import generate_report

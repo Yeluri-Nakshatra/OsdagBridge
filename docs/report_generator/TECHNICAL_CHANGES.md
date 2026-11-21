@@ -9,8 +9,9 @@ Deliverables in this folder:
 
 | File | Purpose |
 |------|---------|
-| `Report_Before.pdf` | Baseline generator (`dev` @ `d74f56d`) rendered from the sample fixture |
-| `Report_After.pdf` | Refactored generator rendered from the **same** fixture |
+| `Report_Before.pdf` | Baseline generator (`dev` @ `d74f56d`), generated from the desktop GUI (Design → Create Design Report) |
+| `Report_After.pdf` | Refactored generator, generated from the GUI with the **same** saved inputs |
+| `inputs.osi` | The saved GUI inputs used for both reports (30 m span, 7.5 m carriageway, footpaths both sides, Maharashtra / Mumbai) |
 | `ROADMAP.md` | Plan, architecture and acceptance criteria |
 | `TECHNICAL_CHANGES.md` | This document |
 
@@ -28,14 +29,14 @@ Deliverables in this folder:
 | 6 | Centralised style system | `styles.py` is the single source of truth (page geometry, palette, typography, table style, header/footer theme, figure sizes, chart theme). The whole LaTeX preamble is *generated* from it. Chapter files contain no `\setlength`, `\definecolor`, column-width or colour literals — this is enforced by a unit test. |
 
 ### Extra polish
-* End-diaphragm tables (Section 5.4) now read the end-diaphragm results; the baseline printed the cross-bracing data under the end-diaphragm headings.
+* End-diaphragm tables (Section 5.4) now read the end-diaphragm results; the baseline printed the cross-bracing data under the end-diaphragm headings (in `Report_Before.pdf` the End Diaphragm capacity table is row-for-row identical to the Cross Bracing one). When the analysis produces no end-diaphragm member forces, as in the GUI run used for the PDFs, no member design runs; the report now states this explicitly in Section 5.4, Section 5.5 and the UR chart, and shows the input section designation, instead of printing blank cells and `KL = 0`.
 * The Executive Summary's *Key Design Outcomes* is a real table (component, governing check, max UR, status) computed from results instead of four hard-coded "pass" lines; the overall status/UR in the Project Overview is derived from all four components.
 * Chapter 7 gains an *End Diaphragms* BOQ row and a total-steel line.
 * Section 5.5 "Transverse shear (slab)" row is filled from the design results (was always "—").
 * Status cells use themed macros (`\statusPass` / `\statusFail` / `\statusWarn`), failing URs are red, header rows are tinted, section rows inside tables are shaded.
 * `pdflatex` is run a third time automatically when the log asks for a rerun; the `.log` is copied next to the PDF for diagnostics.
 * The empty placeholder table "Reactions at Supports" in Chapter 4 was removed (its content is already in Table 4.1).
-* Headless preview tool and 22 unit tests (see §5).
+* Headless preview tool and 24 unit tests (see §5).
 
 ---
 
@@ -161,22 +162,29 @@ lane count follows the 20 % + 10 % + 5 %·(n−2) rule.
 * `python tools/report_preview.py --src ../OsdagBridge-baseline/src --out build/before --stem Report_Before`
   produced `Report_Before.pdf` from the untouched `dev` branch with the same
   fixture, so the two PDFs are directly comparable.
-* `pytest tests/unit/test_report_generator.py` — 22 tests: style emitters,
+* `pytest tests/unit/test_report_generator.py` — 24 tests: style emitters,
   builder output (header repetition, continuation cues, grouped rows, spans,
   unnumbered captions), UR / material extraction, live-load rows, chart
   rendering and graceful degradation, full-document assembly invariants
   (every table is a longtable with `\endfirsthead`/`\endhead`, no `tabular`),
-  `ReportDataBridge` kinds, and an end-to-end PDF test when `pdflatex` is
-  available.
+  `ReportDataBridge` kinds, the end-diaphragm "no analysis forces" case, and
+  an end-to-end PDF test when `pdflatex` is available.
 
-### Environment note
-The solver wheel (`openseespy`) does not load on the Python used for this work,
-so the GUI pipeline could not be run end-to-end here; the Before/After PDFs
-were generated headlessly from `tools/report_fixture.py`, which reproduces the
-engine's `input_dict` / `output_dict` key scheme for a 30 m, three-girder,
-two-lane composite plate-girder bridge. The preview tool installs a no-op
-OpenSees shim only when the real module cannot be imported; the application
-code path is unaffected.
+### GUI run (the submitted PDFs)
+Both PDFs were produced in the `osdagbridge-env` conda environment by the
+procedure in the task sheet: load `inputs.osi`, click **Design**, then
+**File → Create Design Report** with all chapters selected. `Report_Before.pdf`
+comes from an untouched worktree of `dev`, `Report_After.pdf` from this
+branch, so the inputs and analysis results are identical and only the report
+generator differs. An automated scan of every page (text blocks that cross the
+footer rule) finds the baseline's overlap on two pages — a `G2` row on page 20
+and the `G4` row on page 29, the defect cited in the task — and none in the
+refactored report.
+
+The fixture-based preview (`tools/report_fixture.py` + `tools/report_preview.py`)
+remains for development without the solver: it reproduces the engine's
+`input_dict` / `output_dict` key scheme and installs a no-op OpenSees shim
+only when the real module cannot be imported.
 
 ### Observation outside the task scope (not changed)
 `boq_generator.calculate_material_quantities` treats

@@ -539,9 +539,16 @@ def _deck_section(bridge) -> str:
 # ═══════════════════════════════════════════════════════════════════════════════
 # 5.3 / 5.4 Cross bracing & end diaphragm (shared renderer)
 # ═══════════════════════════════════════════════════════════════════════════════
+_NO_FORCES_MSG = "No member forces from the analysis --- design not performed"
+
+
 def _member_tables(bridge, kind: str, title: str, label_pfx: str) -> str:
+    from .summary_data import no_forces_note
     pairs = bridge.get_cb_pairs(kind)
+    with_forces = bridge.get_cb_pairs_with_forces(kind)
     out = []
+    if pairs and not with_forces:
+        out.append(table_note(no_forces_note(title)))
 
     t = LongTable([Column(1.7, "c", "Panel"), Column(2.2, "l", "Member"), Column(2.3, "l", "Connection"),
                    Column(2.9, "c", "Section"), Column(2.2, "c", r"$A_g$ (mm\textsuperscript{2})"), Column(2.2, "c", "$r_{min}$ (mm)")],
@@ -553,7 +560,8 @@ def _member_tables(bridge, kind: str, title: str, label_pfx: str) -> str:
             _, ftype = bridge.get_cb_governing_force(pair, member, kind)
             a = bridge.get_cb_section_property(pair, member, "A", kind)
             rv_ = bridge.get_cb_section_property(pair, member, "rv", kind)
-            rows.append([mlabel, bridge.get_cb_connection(pair, member, ftype, kind), bridge.get_cb_section(pair, member, ftype, kind),
+            section = bridge.get_cb_section(pair, member, ftype, kind) or bridge.get_cb_input_section(pair, member, kind)
+            rows.append([mlabel, bridge.get_cb_connection(pair, member, ftype, kind) or _NA, section or _NA,
                          f"{float(a) * 100:.1f}" if a is not None else "", f"{float(rv_) * 10:.1f}" if rv_ is not None else ""])
         t.add_group(_tex(pair), rows)
     out.append(t.render())
@@ -571,6 +579,9 @@ def _member_tables(bridge, kind: str, title: str, label_pfx: str) -> str:
     top_on = bridge.output_dict.get("member_properties.cross_bracing_details.top_chord", True)
     bot_on = bridge.output_dict.get("member_properties.cross_bracing_details.bottom_chord", True)
     for pair in pairs:
+        if pair not in with_forces:
+            t.add_message_row(_tex(pair), _NO_FORCES_MSG)
+            continue
         kl_d, sl_d = bridge.get_cb_effective_length("diagonal", kind), bridge.get_cb_slenderness(pair, "diagonal", kind)
         kl_c, sl_c = bridge.get_cb_effective_length("chord", kind), bridge.get_cb_slenderness(pair, "chord", kind)
         rows = [["Diagonal", "C", kl_d, sl_d, "250 --- " + _sl_status(sl_d, 250)]]
@@ -586,6 +597,9 @@ def _member_tables(bridge, kind: str, title: str, label_pfx: str) -> str:
                   caption=f"{title} Design --- Capacity Summary", label=f"tab:{label_pfx}-capacity", size="compact",
                   note="Designed per IS 800 Cl. 7 (compression) and Cl. 6 (tension) using the Osdag member-design module.")
     for pair in pairs:
+        if pair not in with_forces:
+            t.add_message_row(_tex(pair), _NO_FORCES_MSG)
+            continue
         rows = []
         for member, mlabel in (("diagonal", "Diagonal"), ("chord", "Chord")):
             force, ftype = bridge.get_cb_governing_force(pair, member, kind)
@@ -768,7 +782,9 @@ def _overall_summary(bridge, charts: Optional[dict], components) -> str:
     t.add_row(["Cross Bracing --- Tension", *member_row("cb", "tension")])
     t.add_row(["Cross Bracing --- Slenderness", *slender_row("cb")])
     t.add_section_row("End Diaphragms")
-    if ed_is_cb:
+    if ed_is_cb and bridge.get_cb_pairs("ed") and not bridge.get_cb_pairs_with_forces("ed"):
+        t.add_message_row("End Diaphragm --- All checks", _NO_FORCES_MSG)
+    elif ed_is_cb:
         t.add_row(["End Diaphragm --- Compression", *member_row("ed", "compression")])
         t.add_row(["End Diaphragm --- Tension", *member_row("ed", "tension")])
         t.add_row(["End Diaphragm --- Slenderness", *slender_row("ed")])
