@@ -321,7 +321,8 @@ def pairs_with_forces(forces_dict: Optional[dict]) -> set:
 
 
 def no_forces_note(name: str) -> str:
-    return (f"The analysis produced no axial forces in the {name.lower()} members, "
+    member = name.lower().removesuffix("s")          # "End Diaphragms" -> "end diaphragm"
+    return (f"The analysis produced no axial forces in the {member} members, "
             "so the member design was not performed.")
 
 

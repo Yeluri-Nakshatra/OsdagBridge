@@ -53,7 +53,7 @@ def _apply_rc(plt, theme: ReportTheme) -> None:
 
 def _wrap(label: str, width: int = 16) -> str:
     import textwrap
-    return "\n".join(textwrap.wrap(str(label), width=width)) or str(label)
+    return "\n".join(textwrap.wrap(str(label), width=width, break_long_words=False)) or str(label)
 
 
 def _save(fig, path: str, theme: ReportTheme) -> str:
@@ -142,7 +142,7 @@ def render_ur_detail(components: Sequence, path: str,
     n = len(groups)
     ncols = 2 if n > 1 else 1
     nrows = (n + ncols - 1) // ncols
-    fig, axes = plt.subplots(nrows, ncols, figsize=(10.0, 3.6 * nrows), sharey=True)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(10.0, 4.0 * nrows), sharey=True)
     axes = list(axes.flat) if hasattr(axes, "flat") else [axes]
     all_vals = [it.ur for _, items in groups for it in items]
     y_top = max(c.ur_axis_min_top, max(all_vals) * (1.0 + c.ur_axis_headroom))
@@ -151,8 +151,9 @@ def render_ur_detail(components: Sequence, path: str,
         base = _component_color(comp.key, theme)
         ax.set_title(comp.name, fontsize=c.title_size, color=base, fontweight="bold")
         if not items:
-            ax.text(0.5, 0.5, comp.note or "No results", transform=ax.transAxes,
-                    ha="center", va="center", fontsize=c.label_size, color=theme.palette.chart_text)
+            ax.text(0.5, 0.55, _wrap(comp.note or "No results", 44), transform=ax.transAxes,
+                    ha="center", va="center", fontsize=c.label_size, color=theme.palette.chart_text,
+                    bbox=dict(facecolor="white", edgecolor="none", pad=3), zorder=3)
             ax.set_xticks([])
         else:
             xs = list(range(len(items)))
@@ -164,8 +165,11 @@ def render_ur_detail(components: Sequence, path: str,
                             va="bottom", fontsize=c.value_label_size, xytext=(0, 2),
                             textcoords="offset points")
             ax.set_xticks(xs)
-            ax.set_xticklabels([_wrap(it.label, 10) for it in items], fontsize=c.tick_size - 1,
-                               rotation=35, ha="right", rotation_mode="anchor")
+            # Crowded panels (e.g. 9 deck checks) get steeper, shorter-wrapped labels.
+            crowded = len(items) > 6
+            ax.set_xticklabels([_wrap(it.label, 12 if crowded else 10) for it in items],
+                               fontsize=c.tick_size - (2 if crowded else 1),
+                               rotation=55 if crowded else 35, ha="right", rotation_mode="anchor")
         _draw_threshold(ax, theme)
         ax.set_ylim(0, y_top)
         ax.yaxis.grid(True, color=theme.palette.chart_grid, alpha=c.grid_alpha, zorder=0)
